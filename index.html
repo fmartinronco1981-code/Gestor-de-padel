@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Cobros - Club de Pádel</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <!-- Cabecera -->
+        <header class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+            <div>
+                <h1 class="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-3">
+                    <i class="fa-solid fa-table-tennis-paddle-ball text-emerald-600"></i>
+                    Gestor de Cobros - Club de Pádel
+                </h1>
+                <p class="text-slate-500 mt-1">Control rápido de socios, impagados, fichas y avisos por WhatsApp con 1 clic.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                <button onclick="abrirModalNuevo()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2 text-sm cursor-pointer">
+                    <i class="fa-solid fa-user-plus"></i> Nuevo Socio / Alumno
+                </button>
+                <button onclick="generarNuevaCuotaMes()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2 text-sm cursor-pointer">
+                    <i class="fa-solid fa-calendar-plus"></i> Generar Cuota Mes
+                </button>
+            </div>
+        </header>
+
+        <!-- KPIs Resumen -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl font-bold">
+                    <i class="fa-solid fa-users"></i>
+                </div>
+                <div>
+                    <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Socios / Alumnos</p>
+                    <h3 id="kpiTotal" class="text-2xl font-bold text-slate-900">0</h3>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl font-bold">
+                    <i class="fa-solid fa-clock"></i>
+                </div>
+                <div>
+                    <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Pendientes de Pago</p>
+                    <h3 id="kpiPendientes" class="text-2xl font-bold text-amber-600">0</h3>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl bg-red-50 text-red-600 flex items-center justify-center text-xl font-bold">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div>
+                    <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Importe Pendiente</p>
+                    <h3 id="kpiImporte" class="text-2xl font-bold text-red-600">0 €</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filtros y Buscador -->
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="relative w-full sm:w-80">
+                <i class="fa-solid fa-search absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+                <input type="text" id="inputBuscar" oninput="filtrarAlumnos()" placeholder="Buscar socio o alumno..." class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500">
+            </div>
+            <div class="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+                <button onclick="filtrarEstado('todos')" id="btnFiltro-todos" class="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-900 text-white transition cursor-pointer">Todos</button>
+                <button onclick="filtrarEstado('pendiente')" id="btnFiltro-pendiente" class="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition cursor-pointer">Pendientes</button>
+                <button onclick="filtrarEstado('avisado')" id="btnFiltro-avisado" class="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition cursor-pointer">Avisados (Rojo)</button>
+                <button onclick="filtrarEstado('pagado')" id="btnFiltro-pagado" class="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition cursor-pointer">Pagados (Verde)</button>
+            </div>
+        </div>
+
+        <!-- Tabla de Alumnos / Socios -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50/75 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            <th class="py-3.5 px-4">Socio / Alumno</th>
+                            <th class="py-3.5 px-4">Contacto</th>
+                            <th class="py-3.5 px-4">Cuota</th>
+                            <th class="py-3.5 px-4">Estado</th>
+                            <th class="py-3.5 px-4 text-right">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaAlumnos" class="divide-y divide-slate-100 text-sm">
+                        <!-- Generado por JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Alta Nuevo Socio -->
+    <div id="modalNuevo" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-md overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-user-plus text-emerald-600"></i>
+                    Alta de Socio / Alumno
+                </h3>
+                <button onclick="cerrarModalNuevo()" class="text-slate-400 hover:text-slate-600 cursor-pointer">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form id="formNuevoAlumno" onsubmit="guardarNuevoAlumno(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Nombre completo *</label>
+                    <input type="text" id="nuevoNombre" required placeholder="Ej. Roberto Martínez" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500">
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Teléfono (con 34) *</label>
+                        <input type="tel" id="nuevoTelefono" required placeholder="34600123456" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Cuota (€) *</label>
+                        <input type="number" id="nuevaCuota" required value="35" min="1" step="1" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Email (Opcional)</label>
+                    <input type="email" id="nuevoEmail" placeholder="roberto@email.com" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Estado inicial</label>
+                    <select id="nuevoEstado" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500">
+                        <option value="pagado">Pagado (Verde)</option>
+                        <option value="pendiente">Pendiente de pago (Ámbar)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Notas / Observaciones</label>
+                    <input type="text" id="nuevoNotas" placeholder="Ej. Paga por Bizum" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500">
+                </div>
+                <div class="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
+                    <button type="button" onclick="cerrarModalNuevo()" class="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 transition cursor-pointer">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition cursor-pointer">Guardar Socio</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Ficha / Edición de Socio -->
+    <div id="modalFicha" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-md overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-id-card text-indigo-600"></i>
+                    Ficha del Socio
+                </h3>
+                <button onclick="cerrarModalFicha()" class="text-slate-400 hover:text-slate-600 cursor-pointer">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form id="formFicha" onsubmit="guardarEdicionSocio(event)" class="p-6 space-y-4">
+                <input type="hidden" id="fichaId">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Nombre completo *</label>
+                    <input type="text" id="fichaNombre" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500">
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Teléfono *</label>
+                        <input type="tel" id="fichaTelefono" required class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Cuota (€) *</label>
+                        <input type="number" id="fichaCuota" required min="1" step="1" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Email</label>
+                    <input type="email" id="fichaEmail" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500">
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Estado de pago</label>
+                        <select id="fichaEstado" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500">
+                            <option value="pagado">Pagado</option>
+                            <option value="pendiente">Pendiente</option>
+                            <option value="avisado">Avisado (Impagado)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Notas / Observaciones</label>
+                        <input type="text" id="fichaNotas" class="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+                <div class="pt-3 flex items-center justify-between border-t border-slate-100">
+                    <button type="button" onclick="eliminarDesdeFicha()" class="text-xs font-medium text-red-600 hover:text-red-700 flex items-center gap-1 cursor-pointer">
+                        <i class="fa-solid fa-trash-can"></i> Eliminar socio
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="cerrarModalFicha()" class="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 transition cursor-pointer">Cancelar</button>
+                        <button type="submit" class="px-5 py-2 rounded-xl text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition cursor-pointer">Actualizar Ficha</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let alumnos = [
+            { id: 1, nombre: "Carlos Mendoza", telefono: "34600111222", email: "carlos@email.com", cuota: 35, estado: "pendiente", notas: "Bizum habitual" },
+            { id: 2, nombre: "Lucía Gómez", telefono: "34600222333", email: "lucia@email.com", cuota: 35, estado: "pagado", notas: "" },
+            { id: 3, nombre: "Javier Torres", telefono: "34600333444", email: "javier@email.com", cuota: 45, estado: "avisado", notas: "Bono 10 clases" },
+            { id: 4, nombre: "Elena Ruiz", telefono: "34600444555", email: "elena@email.com", cuota: 35, estado: "pendiente", notas: "" },
+            { id: 5, nombre: "David Gil", telefono: "34600555666", email: "david@email.com", cuota: 35, estado: "pagado", notas: "" },
+            { id: 6, nombre: "Sofía Navarro", telefono: "34600666777", email: "sofia@email.com", cuota: 50, estado: "pendiente", notas: "Clases avanzadas" },
+            { id: 7, nombre: "Alejandro Sanz", telefono: "34600777888", email: "ale@email.com", cuota: 35, estado: "avisado", notas: "" },
+            { id: 8, nombre: "Carmen Romero", telefono: "34600888999", email: "carmen@email.com", cuota: 35, estado: "pagado", notas: "" },
+            { id: 9, nombre: "Mario Casas", telefono: "34600999000", email: "mario@email.com", cuota: 45, estado: "pendiente", notas: "" },
+            { id: 10, nombre: "Paula Echevarría", telefono: "34601110000", email: "paula@email.com", cuota: 35, estado: "pagado", notas: "" },
+            { id: 11, nombre: "Sergio Ramos", telefono: "34601221122", email: "sergio@email.com", cuota: 35, estado: "pendiente", notas: "" },
+            { id: 12, nombre: "Alba Flores", telefono: "34601332233", email: "alba@email.com", cuota: 50, estado: "avisado", notas: "" },
+            { id: 13, nombre: "Fernando Alonso", telefono: "34601443344", email: "fernando@email.com", cuota: 35, estado: "pagado", notas: "" },
+            { id: 14, nombre: "Beatriz Rico", telefono: "34601554455", email: "beatriz@email.com", cuota: 35, estado: "pendiente", notas: "" },
+            { id: 15, nombre: "Marcos Llorente", telefono: "34601665566", email: "marcos@email.com", cuota: 45, estado: "pagado", notas: "" },
+            { id: 16, nombre: "Claudia Schiffer", telefono: "34601776677", email: "claudia@email.com", cuota: 35, estado: "pendiente", notas: "" },
+            { id: 17, nombre: "Héctor Bellerín", telefono: "34601887788", email: "hector@email.com", cuota: 35, estado: "avisado", notas: "" },
+            { id: 18, nombre: "Raquel Sánchez", telefono: "34601998899", email: "raquel@email.com", cuota: 50, estado: "pagado", notas: "" },
+            { id: 19, nombre: "Adrián Lastra", telefono: "34602119900", email: "adrian@email.com", cuota: 35, estado: "pendiente", notas: "" },
+            { id: 20, nombre: "Nuria Roca", telefono: "34602221100", email: "nuria@email.com", cuota: 35, estado: "pagado", notas: "" },
+            { id: 21, nombre: "Pablo Motos", telefono: "34602332211", email: "pablo@email.com", cuota: 45, estado: "pendiente", notas: "" },
+            { id: 22, nombre: "Cristina Pedroche", telefono: "34602443322", email: "cristina@email.com", cuota: 35, estado: "avisado", notas: "" },
+            { id: 23, nombre: "Andrés Iniesta", telefono: "34602554433", email: "andres@email.com", cuota: 35, estado: "pagado", notas: "" },
+            { id: 24, nombre: "Sara Carbonero", telefono: "34602665544", email: "sara@email.com", cuota: 50, estado: "pendiente", notas: "" },
+            { id: 25, nombre: "Iker Casillas", telefono: "34602776655", email: "iker@email.com", cuota: 35, estado: "pagado", notas: "" },
+            { id: 26, nombre: "Blanca Suárez", telefono: "34602887766", email: "blanca@email.com", cuota: 35, estado: "pendiente", notas: "" },
+            { id: 27, nombre: "Mario Vaquerizo", telefono: "34602998877", email: "mariov@email.com", cuota: 45, estado: "avisado", notas: "" },
+            { id: 28, nombre: "Alaska Fangoria", telefono: "34603110088", email: "alaska@email.com", cuota: 35, estado: "pagado", notas: "" },
+            { id: 29, nombre: "Miguel Ángel Silvestre", telefono: "34603221199", email: "miguel@email.com", cuota: 35, estado: "pendiente", notas: "" },
+            { id: 30, nombre: "Úrsula Corberó", telefono: "34603332200", email: "ursula@email.com", cuota: 50, estado: "pagado", notas: "" }
+        ];
+
+        let filtroActualEstado = 'todos';
+
+        function renderizar() {
+            const tbody = document.getElementById('tablaAlumnos');
+            tbody.innerHTML = '';
+            const busqueda = document.getElementById('inputBuscar').value.toLowerCase();
+
+            let totalAlumnos = alumnos.length;
+            let totalPendientes = 0;
+            let importePendiente = 0;
+
+            alumnos.forEach(alumno => {
+                if (alumno.estado !== 'pagado') {
+                    totalPendientes++;
+                    importePendiente += Number(alumno.cuota);
+                }
+            });
+
+            document.getElementById('kpiTotal').innerText = totalAlumnos;
+            document.getElementById('kpiPendientes').innerText = totalPendientes;
+            document.getElementById('kpiImporte').innerText = importePendiente + ' €';
+
+            const filtrados = alumnos.filter(alumno => {
+                const coincideTexto = alumno.nombre.toLowerCase().includes(busqueda) || (alumno.email && alumno.email.toLowerCase().includes(busqueda));
+                const coincideEstado = filtroActualEstado === 'todos' || alumno.estado === filtroActualEstado;
+                return coincideTexto && coincideEstado;
+            });
+
+            if (filtrados.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-slate-400">No se encontraron socios o alumnos</td></tr>`;
+                return;
+            }
+
+            filtrados.forEach(alumno => {
+                let badgeClase = '';
+                let badgeTexto = '';
+
+                if (alumno.estado === 'pagado') {
+                    badgeClase = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                    badgeTexto = 'Pagado';
+                } else if (alumno.estado === 'pendiente') {
+                    badgeClase = 'bg-amber-50 text-amber-700 border-amber-200';
+                    badgeTexto = 'Pendiente';
+                } else if (alumno.estado === 'avisado') {
+                    badgeClase = 'bg-red-50 text-red-700 border-red-200';
+                    badgeTexto = 'Avisado (Impagado)';
+                }
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50/50 transition";
+                tr.innerHTML = `
+                    <td class="py-3.5 px-4 font-medium text-slate-900">
+                        <button onclick="abrirFicha(${alumno.id})" class="text-left hover:text-indigo-600 transition cursor-pointer font-semibold flex items-center gap-1.5">
+                            ${alumno.nombre} <i class="fa-solid fa-pen-to-square text-xs text-slate-400"></i>
+                        </button>
+                        ${alumno.notas ? `<div class="text-xs text-slate-400 font-normal mt-0.5"><i class="fa-solid fa-note-sticky text-[10px]"></i> ${alumno.notas}</div>` : ''}
+                    </td>
+                    <td class="py-3.5 px-4">
+                        <div class="text-slate-600 font-mono text-xs">${alumno.telefono}</div>
+                        ${alumno.email ? `<div class="text-slate-400 text-xs">${alumno.email}</div>` : ''}
+                    </td>
+                    <td class="py-3.5 px-4 font-semibold text-slate-700">${alumno.cuota} €</td>
+                    <td class="py-3.5 px-4">
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${badgeClase}">
+                            ${badgeTexto}
+                        </span>
+                    </td>
+                    <td class="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
+                        <button onclick="enviarWhatsApp(${alumno.id})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition shadow-xs inline-flex items-center gap-1.5 cursor-pointer">
+                            <i class="fa-brands fa-whatsapp text-sm"></i> WhatsApp
+                        </button>
+                        <button onclick="alternarPago(${alumno.id})" class="px-3 py-1.5 rounded-lg text-xs font-medium border transition cursor-pointer ${alumno.estado === 'pagado' ? 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100' : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}">
+                            ${alumno.estado === 'pagado' ? 'Marcar Pendiente' : '✓ Pagado'}
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function abrirModalNuevo() {
+            document.getElementById('formNuevoAlumno').reset();
+            document.getElementById('modalNuevo').classList.remove('hidden');
+            document.getElementById('modalNuevo').classList.add('flex');
+        }
+
+        function cerrarModalNuevo() {
+            document.getElementById('modalNuevo').classList.add('hidden');
+            document.getElementById('modalNuevo').classList.remove('flex');
+        }
+
+        function guardarNuevoAlumno(e) {
+            e.preventDefault();
+            const nombre = document.getElementById('nuevoNombre').value.trim();
+            let telefono = document.getElementById('nuevoTelefono').value.replace(/\D/g, '');
+            if (telefono.length === 9 && (telefono.startsWith('6') || telefono.startsWith('7'))) {
+                telefono = '34' + telefono;
+            }
+            const cuota = parseFloat(document.getElementById('nuevaCuota').value) || 35;
+            const email = document.getElementById('nuevoEmail').value.trim();
+            const estado = document.getElementById('nuevoEstado').value;
+            const notas = document.getElementById('nuevoNotas').value.trim();
+
+            const nuevo = {
+                id: Date.now(),
+                nombre,
+                telefono,
+                email,
+                cuota,
+                estado,
+                notas
+            };
+
+            alumnos.unshift(nuevo);
+            cerrarModalNuevo();
+            renderizar();
+        }
+
+        function abrirFicha(id) {
+            const alumno = alumnos.find(a => a.id === id);
+            if (!alumno) return;
+
+            document.getElementById('fichaId').value = alumno.id;
+            document.getElementById('fichaNombre').value = alumno.nombre;
+            document.getElementById('fichaTelefono').value = alumno.telefono;
+            document.getElementById('fichaCuota').value = alumno.cuota;
+            document.getElementById('fichaEmail').value = alumno.email || '';
+            document.getElementById('fichaEstado').value = alumno.estado;
+            document.getElementById('fichaNotas').value = alumno.notas || '';
+
+            document.getElementById('modalFicha').classList.remove('hidden');
+            document.getElementById('modalFicha').classList.add('flex');
+        }
+
+        function cerrarModalFicha() {
+            document.getElementById('modalFicha').classList.add('hidden');
+            document.getElementById('modalFicha').classList.remove('flex');
+        }
+
+        function guardarEdicionSocio(e) {
+            e.preventDefault();
+            const id = Number(document.getElementById('fichaId').value);
+            const alumno = alumnos.find(a => a.id === id);
+            if (!alumno) return;
+
+            alumno.nombre = document.getElementById('fichaNombre').value.trim();
+            alumno.telefono = document.getElementById('fichaTelefono').value.trim();
+            alumno.cuota = parseFloat(document.getElementById('fichaCuota').value) || 35;
+            alumno.email = document.getElementById('fichaEmail').value.trim();
+            alumno.estado = document.getElementById('fichaEstado').value;
+            alumno.notas = document.getElementById('fichaNotas').value.trim();
+
+            cerrarModalFicha();
+            renderizar();
+        }
+
+        function eliminarDesdeFicha() {
+            const id = Number(document.getElementById('fichaId').value);
+            const alumno = alumnos.find(a => a.id === id);
+            if (!alumno) return;
+
+            if (confirm(`¿Estás seguro de eliminar a ${alumno.nombre}?`)) {
+                alumnos = alumnos.filter(a => a.id !== id);
+                cerrarModalFicha();
+                renderizar();
+            }
+        }
+
+        function enviarWhatsApp(id) {
+            const alumno = alumnos.find(a => a.id === id);
+            if (!alumno) return;
+            alumno.estado = 'avisado';
+            renderizar();
+            const mensaje = `Hola ${alumno.nombre}, te escribimos del centro de pádel para recordarte que tienes pendiente el pago de la cuota por importe de ${alumno.cuota} €. ¡Muchas gracias!`;
+            const url = `https://wa.me/${alumno.telefono}?text=${encodeURIComponent(mensaje)}`;
+            window.open(url, '_blank');
+        }
+
+        function alternarPago(id) {
+            const alumno = alumnos.find(a => a.id === id);
+            if (!alumno) return;
+            alumno.estado = (alumno.estado === 'pagado') ? 'pendiente' : 'pagado';
+            renderizar();
+        }
+
+        function filtrarEstado(estado) {
+            filtroActualEstado = estado;
+            ['todos', 'pendiente', 'avisado', 'pagado'].forEach(e => {
+                const btn = document.getElementById(`btnFiltro-${e}`);
+                if (e === estado) {
+                    btn.className = "px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-900 text-white transition cursor-pointer";
+                } else {
+                    btn.className = "px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition cursor-pointer";
+                }
+            });
+            renderizar();
+        }
+
+        function filtrarAlumnos() {
+            renderizar();
+        }
+
+        function generarNuevaCuotaMes() {
+            if (confirm("¿Estás seguro de poner a todos los alumnos en estado 'Pendiente' para iniciar un nuevo mes?")) {
+                alumnos.forEach(alumno => {
+                    if (alumno.estado === 'pagado') {
+                        alumno.estado = 'pendiente';
+                    }
+                });
+                renderizar();
+            }
+        }
+
+        renderizar();
+    </script>
+</body>
+</html>
